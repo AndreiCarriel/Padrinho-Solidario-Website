@@ -1,5 +1,7 @@
 <?php
 declare(strict_types=1);
+session_start();
+$loggedIn = !empty($_SESSION['padrinho_id']);
 
 $aboutItems = [
  ['icon'=>'🛡️','title'=>'Transparência','desc'=>'Toda movimentação é auditável e visível para padrinhos e instituições.'],
@@ -63,7 +65,7 @@ function e(string $value): string { return htmlspecialchars($value, ENT_QUOTES, 
       <span class="eyebrow"><span>✦</span> Plataforma de impacto social</span>
       <h1>Transformando vidas através do <span class="gradient-text">apadrinhamento e da solidariedade</span></h1>
       <p class="hero-description">Conectamos padrinhos, doadores e abrigos em uma única plataforma — transparente, segura e humanizada. Cada gesto vira história, cada doação vira esperança.</p>
-      <div class="button-row"><a class="button" href="cadastro.php">♡ Quero apadrinhar</a><a class="button button-outline" href="#contato">＋ Fazer doação</a></div>
+      <div class="button-row"><a class="button" href="cadastro.php">♡ Quero apadrinhar</a><button class="button button-outline" type="button" data-donation-open>＋ Fazer doação</button></div>
       <div class="hero-stats">
         <div><strong data-count="1240">0</strong><span>Crianças acolhidas</span></div><i></i>
         <div><strong data-count="860">0</strong><span>Padrinhos ativos</span></div><i class="desktop-only"></i>
@@ -144,8 +146,39 @@ function e(string $value): string { return htmlspecialchars($value, ENT_QUOTES, 
   <div class="grid grid-3"><?php foreach ($testimonials as $item): ?><article class="testimonial-card reveal"><div class="quote-mark">“</div><p><?= e($item['text']) ?></p><div class="testimonial-person"><span><?= e(implode('', array_map(fn($part) => mb_substr($part, 0, 1), explode(' ', $item['name'])))) ?></span><div><strong><?= e($item['name']) ?></strong><small><?= e($item['role']) ?></small></div></div></article><?php endforeach; ?></div>
 </div></section>
 
-<section class="section cta-section" id="contato"><div class="container"><div class="cta-card reveal"><span class="eyebrow">Faça parte dessa mudança</span><h2>Pronto para transformar uma história?</h2><p>Junte-se a pessoas e instituições construindo um futuro mais solidário.</p><div class="button-row center"><a class="button button-white" href="cadastro.php">♡ Quero apadrinhar</a><a class="button button-cta-outline" href="mailto:contato@solidario.app?subject=Quero%20fazer%20uma%20doacao">＋ Fazer doação</a></div></div></div></section>
+<section class="section cta-section" id="contato"><div class="container"><div class="cta-card reveal"><span class="eyebrow">Faça parte dessa mudança</span><h2>Pronto para transformar uma história?</h2><p>Junte-se a pessoas e instituições construindo um futuro mais solidário.</p><div class="button-row center"><a class="button button-white" href="cadastro.php">♡ Quero apadrinhar</a><button class="button button-cta-outline" type="button" data-donation-open>＋ Fazer doação</button></div></div></div></section>
 </main>
 <footer class="site-footer"><div class="container footer-grid"><div class="footer-about"><a class="brand" href="#top"><span class="brand-mark">♥</span><span>Padrinho Solidário</span></a><p>Plataforma de gestão social que conecta padrinhos, doadores e abrigos com transparência e afeto.</p></div><div><h4>Links rápidos</h4><a href="#sobre">Sobre</a><a href="#funcionalidades">Funcionalidades</a><a href="#dashboard">Dashboard</a><a href="#impacto">Impacto</a></div><div><h4>Contato</h4><a href="mailto:contato@solidario.app">contato@solidario.app</a><span>Projeto acadêmico demonstrativo</span></div></div><div class="footer-bottom"><div class="container">© <?= date('Y') ?> Padrinho Solidário. Todos os direitos reservados. <span>Feito com ♥ para transformar vidas.</span></div></div></footer>
+
+
+<dialog id="donationChoice" class="donation-choice">
+  <div class="donation-choice-inner">
+    <button type="button" class="donation-choice-close" id="donationChoiceClose" aria-label="Fechar">×</button>
+    <span class="eyebrow">Faça parte dessa mudança</span>
+    <h2>Você tem cadastro no site?</h2>
+    <p>Escolha como deseja continuar para registrar ou encaminhar sua doação.</p>
+    <div class="donation-choice-actions">
+      <a class="button" href="<?= $loggedIn ? 'doacao.php' : 'login.php?redirect=doacao.php' ?>">Sim, tenho cadastro</a>
+      <a class="button button-outline" href="instituicoes.php">Não tenho cadastro</a>
+    </div>
+  </div>
+</dialog>
+<style>
+.donation-choice{width:min(480px,calc(100% - 28px));border:1px solid var(--border);border-radius:20px;padding:0;background:var(--surface);color:var(--text);box-shadow:0 24px 80px #21160f55}
+.donation-choice::backdrop{background:rgba(35,25,20,.58);backdrop-filter:blur(3px)}
+.donation-choice-inner{padding:32px;position:relative}
+.donation-choice-inner h2{font:800 25px Manrope,sans-serif;margin:14px 0 8px}
+.donation-choice-inner p{color:var(--muted);font-size:14px}
+.donation-choice-close{position:absolute;right:18px;top:16px;border:0;border-radius:9px;background:var(--warm);color:var(--text);width:36px;height:36px;font-size:22px;cursor:pointer}
+.donation-choice-actions{display:flex;flex-direction:column;gap:10px;margin-top:22px}
+.donation-choice-actions .button{text-align:center}
+</style>
+<script>
+const donationChoice = document.getElementById('donationChoice');
+document.querySelectorAll('[data-donation-open]').forEach(button => button.addEventListener('click', () => donationChoice.showModal()));
+document.getElementById('donationChoiceClose').addEventListener('click', () => donationChoice.close());
+donationChoice.addEventListener('click', event => { if(event.target === donationChoice) donationChoice.close(); });
+</script>
+
 </body>
 </html>

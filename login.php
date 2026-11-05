@@ -10,11 +10,15 @@ if (empty($_SESSION['csrf_token'])) {
 }
 $error = '';
 $email = '';
+$redirectTarget = (string)($_GET['redirect'] ?? $_POST['redirect'] ?? '');
+if ($redirectTarget !== 'doacao.php') $redirectTarget = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim((string)($_POST['email'] ?? ''));
     $password = (string)($_POST['senha'] ?? '');
     $token = (string)($_POST['csrf_token'] ?? '');
+    $redirectTarget = (string)($_POST['redirect'] ?? '');
+    if ($redirectTarget !== 'doacao.php') $redirectTarget = '';
 
     if (!hash_equals($_SESSION['csrf_token'], $token)) {
         $error = 'Sua sessão expirou. Atualize a página e tente novamente.';
@@ -43,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['padrinho_nome'] = (string)$user['nome'];
                     $_SESSION['padrinho_email'] = (string)$user['email'];
                     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-                    header('Location: boas-vindas.php');
+                    header('Location: ' . ($redirectTarget === 'doacao.php' ? 'doacao.php' : 'boas-vindas.php'));
                     exit;
                 }
             }
@@ -87,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php if ($error !== ''): ?><div class="login-error" role="alert"><?= e($error) ?></div><?php endif; ?>
 <form method="post" action="login.php">
 <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
+<input type="hidden" name="redirect" value="<?= e($redirectTarget) ?>">
 <div class="login-field"><label for="email">E-mail</label><input type="email" id="email" name="email" value="<?= e($email) ?>" autocomplete="email" required autofocus></div>
 <div class="login-field"><label for="senha">Senha</label><input type="password" id="senha" name="senha" autocomplete="current-password" required></div>
 <button class="button login-submit" type="submit">Entrar</button>

@@ -2,8 +2,8 @@
 declare(strict_types=1);
 session_start();
 
-if (empty($_SESSION['padrinho_nome'])) {
-    header('Location: cadastro.php');
+if (empty($_SESSION['padrinho_nome']) || empty($_SESSION['padrinho_id'])) {
+    header('Location: login.php');
     exit;
 }
 function e(string $value): string {
@@ -15,25 +15,85 @@ $nome = (string)$_SESSION['padrinho_nome'];
 $criancas = [
     [
         'idade' => 7, 'sexo' => 'Masculino', 'status' => 'Ativo',
-        'instituicao' => 'Lar Pequeno Príncipe',
+        'instituicao' => 'Lar Pequeno Príncipe', 'email_instituicao' => 'contato@larpequenoprincipe.org.br',
         'observacao' => 'Necessita de apoio com materiais escolares e acompanhamento educacional.'
     ],
     [
         'idade' => 9, 'sexo' => 'Feminino', 'status' => 'Ativo',
-        'instituicao' => 'Abrigo Esperança',
+        'instituicao' => 'Abrigo Esperança', 'email_instituicao' => 'contato@abrigoesperanca.org.br',
         'observacao' => 'Precisa de roupas infantis, calçados e incentivo às atividades de leitura.'
     ],
     [
         'idade' => 5, 'sexo' => 'Masculino', 'status' => 'Não ativo',
-        'instituicao' => 'Casa Acolhedora Sementes',
+        'instituicao' => 'Casa Acolhedora Sementes', 'email_instituicao' => 'contato@casasementes.org.br',
         'observacao' => 'Aguardando disponibilidade para novo apadrinhamento. Necessita de itens de higiene.'
     ],
     [
         'idade' => 11, 'sexo' => 'Feminino', 'status' => 'Ativo',
-        'instituicao' => 'Lar Pequeno Príncipe',
+        'instituicao' => 'Lar Pequeno Príncipe', 'email_instituicao' => 'contato@larpequenoprincipe.org.br',
         'observacao' => 'Necessita de materiais para atividades artísticas e acompanhamento escolar.'
     ],
 ];
+$requestMessage = '';
+$requestError = '';
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'request_sponsorship') {
+    $token = (string)($_POST['csrf_token'] ?? '');
+    $childIndex = filter_var($_POST['child_index'] ?? null, FILTER_VALIDATE_INT);
+    if (!hash_equals($_SESSION['csrf_token'], $token)) {
+        $requestError = 'Sua sessão expirou. Atualize a página e tente novamente.';
+    } elseif ($childIndex === false || !isset($criancas[$childIndex])) {
+        $requestError = 'Não foi possível identificar a criança selecionada.';
+    } elseif ($criancas[$childIndex]['status'] !== 'Ativo') {
+        $requestError = 'Este cadastro não está ativo para receber solicitações no momento.';
+    } else {
+        try {
+            $dataDir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'padrinho-solidario-data';
+            $dbFile = $dataDir . DIRECTORY_SEPARATOR . 'cadastros.sqlite';
+            if (!is_file($dbFile)) {
+                throw new RuntimeException('Banco de dados não encontrado.');
+            }
+            $db = new PDO('sqlite:' . $dbFile);
+            $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $db->exec("CREATE TABLE IF NOT EXISTS solicitacoes_apadrinhamento (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                padrinho_id INTEGER NOT NULL,
+                padrinho_nome TEXT NOT NULL,
+                crianca_id INTEGER NOT NULL,
+                idade_crianca INTEGER NOT NULL,
+                sexo_crianca TEXT NOT NULL,
+                instituicao TEXT NOT NULL,
+                observacoes TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'Pendente',
+                criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )");
+            $stmt = $db->prepare("INSERT INTO solicitacoes_apadrinhamento
+                (padrinho_id,padrinho_nome,crianca_id,idade_crianca,sexo_crianca,instituicao,observacoes)
+                VALUES (:padrinho_id,:padrinho_nome,:crianca_id,:idade,:sexo,:instituicao,:observacoes)");
+            $child = $criancas[$childIndex];
+            $stmt->execute([
+                ':padrinho_id'=>(int)$_SESSION['padrinho_id'],
+                ':padrinho_nome'=>(string)$_SESSION['padrinho_nome'],
+                ':crianca_id'=>$childIndex,
+                ':idade'=>$child['idade'],
+                ':sexo'=>$child['sexo'],
+                ':instituicao'=>$child['instituicao'],
+                ':observacoes'=>$child['observacao']
+            ]);
+            $_SESSION['flash_solicitacao'] = 'Sua solicitação foi enviada à instituição ' . $child['instituicao'] . '. A equipe entrará em contato para conversar sobre os próximos passos. E-mail da instituição: ' . $child['email_instituicao'];
+            header('Location: boas-vindas.php');
+            exit;
+        } catch (Throwable $ex) {
+            $requestError = 'Não foi possível registrar a solicitação. Verifique se o banco SQLite está disponível.';
+        }
+    }
+}
+if (!empty($_SESSION['flash_solicitacao'])) {
+    $requestMessage = (string)$_SESSION['flash_solicitacao'];
+    unset($_SESSION['flash_solicitacao']);
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -57,7 +117,24 @@ $criancas = [
 .children-heading p{color:var(--muted);margin:0;font-size:14px}
 .children-count{white-space:nowrap;background:var(--warm);color:var(--primary-dark);border-radius:999px;padding:8px 13px;font-size:12px;font-weight:700}
 .children-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
-.child-card{background:var(--surface);border:1px solid var(--border);border-radius:17px;padding:23px;box-shadow:var(--shadow)}
+.child-card{background:var(--surface);border:1px solid var(--border);border-radius:17px;padding:23px;box-shadow:var(--shadow);transition:transform .2s,border-color .2s,box-shadow .2s}
+.child-card:hover{transform:translateY(-3px);border-color:var(--primary);box-shadow:0 16px 38px rgba(73,45,30,.13)}
+.child-open{display:block;width:100%;text-align:left;border:0;background:transparent;color:inherit;padding:0;cursor:pointer;font:inherit}
+.child-open:focus-visible{outline:3px solid #bd674655;outline-offset:5px;border-radius:8px}
+.child-open-hint{display:block;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:12px;font-weight:700;color:var(--primary-dark)}
+.child-modal{width:min(540px,calc(100% - 28px));max-height:85vh;overflow:auto;border:1px solid var(--border);border-radius:20px;padding:0;background:var(--surface);color:var(--text);box-shadow:0 24px 80px #21160f55}
+.child-modal::backdrop{background:rgba(35,25,20,.58);backdrop-filter:blur(3px)}
+.modal-content{padding:clamp(22px,4vw,32px)}
+.modal-header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px}
+.modal-close{border:0;border-radius:10px;background:var(--warm);color:var(--text);width:38px;height:38px;font-size:22px;cursor:pointer}
+.modal-title{font:800 27px Manrope,sans-serif;margin:0 0 5px}
+.modal-subtitle{font-size:13px;color:var(--muted);margin:0}
+.modal-details{margin-top:20px}
+.modal-actions{display:flex;gap:10px;margin-top:26px;flex-wrap:wrap}
+.modal-actions .button{width:100%;text-align:center}
+.button-disabled{opacity:.48;pointer-events:none;filter:grayscale(.5)}
+.modal-disclaimer{font-size:12px;line-height:1.5;color:var(--muted);margin:18px 0 0}
+
 .child-card-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
 .child-symbol{width:44px;height:44px;border-radius:14px;background:var(--warm);display:grid;place-items:center;color:var(--primary);font-size:20px}
 .child-status{padding:6px 10px;border-radius:999px;font-size:11px;font-weight:700}
@@ -78,7 +155,7 @@ $criancas = [
 <div class="welcome-container">
 <header class="welcome-header">
 <a class="brand" href="index.php"><span class="brand-mark">♥</span><span>Padrinho Solidário</span></a>
-<div style="display:flex;gap:16px;align-items:center"><a class="back-link" href="index.php">Voltar ao início</a><a class="back-link" href="sair.php">Sair</a></div>
+<div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><a class="back-link" href="doacao.php">Fazer doação</a><a class="back-link" href="index.php">Voltar ao início</a><a class="back-link" href="sair.php">Sair</a></div>
 </header>
 
 <section class="welcome-intro">
@@ -86,6 +163,8 @@ $criancas = [
 <h1>Boas-vindas, <?= e(explode(' ', trim($nome))[0]) ?>!</h1>
 <p>Seu cadastro foi recebido. Conheça abaixo algumas crianças vinculadas às instituições parceiras e suas necessidades atuais.</p>
 </section>
+<?php if ($requestMessage !== ''): ?><div class="welcome-note" role="status" style="border-color:#9acdb0;background:#edf8f1;color:#246b48;margin-bottom:24px"><strong>Solicitação enviada!</strong><br><?= e($requestMessage) ?></div><?php endif; ?>
+<?php if ($requestError !== ''): ?><div class="welcome-note" role="alert" style="border-color:#e5b5a8;color:#963e2d;margin-bottom:24px"><?= e($requestError) ?></div><?php endif; ?>
 
 <section aria-labelledby="children-title">
 <div class="children-heading">
@@ -93,16 +172,19 @@ $criancas = [
 <span class="children-count"><?= count($criancas) ?> cadastros demonstrativos</span>
 </div>
 <div class="children-grid">
-<?php foreach ($criancas as $crianca): ?>
+<?php foreach ($criancas as $indice => $crianca): ?>
 <article class="child-card">
-<div class="child-card-top">
-<span class="child-symbol" aria-hidden="true">♡</span>
-<span class="child-status <?= $crianca['status'] === 'Ativo' ? 'active' : 'inactive' ?>"><?= e($crianca['status']) ?></span>
-</div>
-<h3 class="child-age"><?= (int)$crianca['idade'] ?> anos</h3>
-<p class="child-sex"><?= e($crianca['sexo']) ?></p>
-<div class="child-detail"><strong>Instituição</strong><p><?= e($crianca['instituicao']) ?></p></div>
-<div class="child-detail"><strong>Observações / necessidades</strong><p><?= e($crianca['observacao']) ?></p></div>
+<button class="child-open" type="button" data-child-index="<?= (int)$indice ?>" aria-label="Ver informações da criança, <?= (int)$crianca['idade'] ?> anos">
+  <div class="child-card-top">
+    <span class="child-symbol" aria-hidden="true">♡</span>
+    <span class="child-status <?= $crianca['status'] === 'Ativo' ? 'active' : 'inactive' ?>"><?= e($crianca['status']) ?></span>
+  </div>
+  <h3 class="child-age"><?= (int)$crianca['idade'] ?> anos</h3>
+  <p class="child-sex"><?= e($crianca['sexo']) ?></p>
+  <div class="child-detail"><strong>Instituição</strong><p><?= e($crianca['instituicao']) ?></p></div>
+  <div class="child-detail"><strong>Observações / necessidades</strong><p><?= e($crianca['observacao']) ?></p></div>
+  <span class="child-open-hint">Ver informações e opções →</span>
+</button>
 </article>
 <?php endforeach; ?>
 </div>
@@ -115,5 +197,80 @@ $criancas = [
 </footer>
 </div>
 </main>
+
+<dialog class="child-modal" id="childModal" aria-labelledby="modalChildAge">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span class="child-symbol" aria-hidden="true">♡</span>
+      <button class="modal-close" type="button" id="closeChildModal" aria-label="Fechar janela">×</button>
+    </div>
+    <h2 class="modal-title" id="modalChildAge">Informações da criança</h2>
+    <p class="modal-subtitle" id="modalChildStatus"></p>
+    <div class="modal-details">
+      <div class="child-detail"><strong>Sexo</strong><p id="modalChildSex"></p></div>
+      <div class="child-detail"><strong>Instituição</strong><p id="modalChildInstitution"></p></div>
+      <div class="child-detail"><strong>Observações / necessidades</strong><p id="modalChildNeeds"></p></div>
+    </div>
+    <div class="modal-actions">
+      <form method="post" action="boas-vindas.php" id="sponsorForm" style="flex:1;min-width:150px">
+      <input type="hidden" name="action" value="request_sponsorship">
+      <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token']) ?>">
+      <input type="hidden" name="child_index" id="sponsorChildIndex" value="">
+      <button class="button" id="sponsorAction" type="submit" style="width:100%">♡ Apadrinhar</button>
+    </form>
+    </div>
+    <p class="modal-disclaimer" id="modalActionNote">Estas opções iniciam um contato com a equipe do projeto. A solicitação não confirma apadrinhamento nem adoção; a instituição responsável deverá orientar e avaliar os próximos passos.</p>
+  </div>
+</dialog>
+<script>
+const childrenData = <?= json_encode(array_map(static function (array $child): array {
+    return [
+        'idade' => (int)$child['idade'],
+        'sexo' => $child['sexo'],
+        'status' => $child['status'],
+        'instituicao' => $child['instituicao'],
+        'observacao' => $child['observacao']
+    ];
+}, $criancas), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
+
+const childModal = document.getElementById('childModal');
+const closeChildModal = document.getElementById('closeChildModal');
+const sponsorAction = document.getElementById('sponsorAction');
+const sponsorForm = document.getElementById('sponsorForm');
+const sponsorChildIndex = document.getElementById('sponsorChildIndex');
+
+document.querySelectorAll('.child-open').forEach((button) => {
+  button.addEventListener('click', () => {
+    const child = childrenData[Number(button.dataset.childIndex)];
+    if (!child) return;
+
+    document.getElementById('modalChildAge').textContent = child.idade + ' anos';
+    document.getElementById('modalChildStatus').textContent = 'Status: ' + child.status;
+    document.getElementById('modalChildSex').textContent = child.sexo;
+    document.getElementById('modalChildInstitution').textContent = child.instituicao;
+    document.getElementById('modalChildNeeds').textContent = child.observacao;
+
+    const available = child.status === 'Ativo';
+    sponsorAction.disabled = !available;
+    sponsorAction.classList.toggle('button-disabled', !available);
+    sponsorChildIndex.value = String(Number(button.dataset.childIndex));
+
+    document.getElementById('modalActionNote').textContent = available
+      ? 'Ao solicitar o apadrinhamento, o pedido será registrado para análise da instituição. A equipe poderá aceitar ou recusar e entrará em contato para conversar sobre os próximos passos.'
+      : 'Este cadastro está marcado como não ativo. As opções de contato estão indisponíveis no momento.';
+    childModal.showModal();
+  });
+});
+
+<?php if ($requestMessage !== ''): ?>
+alert(<?= json_encode($requestMessage, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>);
+<?php endif; ?>
+
+closeChildModal.addEventListener('click', () => childModal.close());
+childModal.addEventListener('click', (event) => {
+  if (event.target === childModal) childModal.close();
+});
+</script>
+
 </body>
 </html>

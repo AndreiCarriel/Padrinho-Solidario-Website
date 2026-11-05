@@ -47,3 +47,23 @@ A página de boas-vindas exige a sessão criada durante o cadastro. A listagem n
 **Preservação do banco:** o arquivo SQLite é criado fora da pasta do projeto, em `padrinho-solidario-data/cadastros.sqlite`. Ao atualizar os arquivos, mantenha essa pasta no mesmo local relativo ao diretório do projeto para que os cadastros anteriores continuem acessíveis. Não apague essa pasta se quiser preservar as contas.
 
 Requisito: PHP com PDO_SQLITE habilitado. O protótipo não inclui recuperação de senha, confirmação de e-mail, limitação de tentativas ou painel de administração; esses recursos e medidas adicionais de segurança devem ser implementados antes de uso público.
+
+
+## Solicitações de apadrinhamento
+
+Na janela de detalhes, o botão **Apadrinhar** agora envia um POST protegido por token CSRF. O servidor grava a solicitação na tabela `solicitacoes_apadrinhamento`, associando o ID/nome do padrinho e os dados exibidos da criança, com status inicial `Pendente`. O usuário recebe uma confirmação na página de boas-vindas após o redirecionamento. A criança marcada como não ativa não aceita solicitações. Ainda não existe painel de instituição para aceitar/recusar; a tabela já guarda o status para essa futura etapa.
+
+## Fluxo de doações
+
+- O botão **Fazer doação** abre uma janela perguntando se a pessoa possui cadastro.
+- Com cadastro, direciona ao login e, após autenticar, retorna a `doacao.php`. Se já estiver logada, abre diretamente o formulário.
+- Sem cadastro, abre `instituicoes.php`, com os contatos demonstrativos das instituições.
+- O formulário autenticado registra instituição, tipo, valor (quando dinheiro), descrição, padrinho e data na tabela `doacoes` do mesmo SQLite.
+- As doações não movimentam dinheiro nem comprovam transferência: o registro é uma anotação da contribuição informada pelo usuário.
+
+**Atenção:** os e-mails e instituições de exemplo são fictícios e devem ser substituídos pelos contatos oficiais. A solicitação de apadrinhamento fica registrada como pendente, mas a instituição ainda não recebe notificação automática por e-mail nem possui tela para decidir. Para produção, implementar painel institucional, autenticação por perfil, notificações, auditoria e controles LGPD.
+
+
+## Ajuste da janela de apadrinhamento
+
+A janela de informações da criança agora apresenta somente o botão **Apadrinhar**. Após a confirmação, a solicitação é registrada com status `Pendente` e o usuário recebe um alerta com o nome da instituição e o e-mail de contato correspondente. Os e-mails atuais são demonstrativos e devem ser substituídos pelos endereços oficiais. O registro no SQLite não envia, por si só, uma mensagem de e-mail à instituição; a notificação automática depende de integração de e-mail ou de um painel institucional.

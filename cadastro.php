@@ -81,7 +81,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':numero'=>$values['numero'], ':complemento'=>$values['complemento'],
                 ':bairro'=>$values['bairro'], ':cidade'=>$values['cidade'], ':estado'=>strtoupper($values['estado'])
             ]);
+            $_SESSION['padrinho_id'] = (int)$db->lastInsertId();
             $_SESSION['padrinho_nome'] = $values['nome'];
+            $_SESSION['padrinho_email'] = mb_strtolower($values['email']);
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
             header('Location: boas-vindas.php');
             exit;
