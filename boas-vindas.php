@@ -50,25 +50,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'reque
         $requestError = 'Este cadastro não está ativo para receber solicitações no momento.';
     } else {
         try {
-            $dataDir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'padrinho-solidario-data';
-            $dbFile = $dataDir . DIRECTORY_SEPARATOR . 'cadastros.sqlite';
-            if (!is_file($dbFile)) {
-                throw new RuntimeException('Banco de dados não encontrado.');
-            }
-            $db = new PDO('sqlite:' . $dbFile);
-            $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            $db->exec("CREATE TABLE IF NOT EXISTS solicitacoes_apadrinhamento (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                padrinho_id INTEGER NOT NULL,
-                padrinho_nome TEXT NOT NULL,
-                crianca_id INTEGER NOT NULL,
-                idade_crianca INTEGER NOT NULL,
-                sexo_crianca TEXT NOT NULL,
-                instituicao TEXT NOT NULL,
-                observacoes TEXT NOT NULL,
-                status TEXT NOT NULL DEFAULT 'Pendente',
-                criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-            )");
+            require_once __DIR__ . '/db.php';
+            $db = db();
             $stmt = $db->prepare("INSERT INTO solicitacoes_apadrinhamento
                 (padrinho_id,padrinho_nome,crianca_id,idade_crianca,sexo_crianca,instituicao,observacoes)
                 VALUES (:padrinho_id,:padrinho_nome,:crianca_id,:idade,:sexo,:instituicao,:observacoes)");
@@ -86,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'reque
             header('Location: boas-vindas.php');
             exit;
         } catch (Throwable $ex) {
-            $requestError = 'Não foi possível registrar a solicitação. Verifique se o banco SQLite está disponível.';
+            $requestError = 'Não foi possível registrar a solicitação. Verifique a conexão com o banco MySQL.';
         }
     }
 }

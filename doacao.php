@@ -6,7 +6,8 @@ if (empty($_SESSION['padrinho_id'])) {
     exit;
 }
 function e(string $value): string { return htmlspecialchars($value, ENT_QUOTES, 'UTF-8'); }
-$instituicoes = ['Lar Pequeno Príncipe','Abrigo Esperança','Casa Acolhedora Sementes'];
+require_once __DIR__ . '/db.php';
+$instituicoes = db()->query("SELECT nome_instituicao FROM instituicoes WHERE status <> 'Rejeitada' ORDER BY nome_instituicao")->fetchAll(PDO::FETCH_COLUMN);
 $tipos = ['Dinheiro','Alimentos','Roupas','Brinquedos','Higiene','Outros'];
 $errors = [];
 $success = false;
@@ -27,21 +28,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($values['descricao'] === '') $errors[] = 'Descreva brevemente a doação.';
     if (!$errors) {
         try {
-            $dataDir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'padrinho-solidario-data';
-            $dbFile = $dataDir . DIRECTORY_SEPARATOR . 'cadastros.sqlite';
-            if (!is_file($dbFile)) throw new RuntimeException('Banco não encontrado.');
-            $db = new PDO('sqlite:' . $dbFile);
-            $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            $db->exec("CREATE TABLE IF NOT EXISTS doacoes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                padrinho_id INTEGER NOT NULL,
-                padrinho_nome TEXT NOT NULL,
-                instituicao TEXT NOT NULL,
-                tipo TEXT NOT NULL,
-                valor REAL NULL,
-                descricao TEXT NOT NULL,
-                data_doacao TEXT NOT NULL
-            )");
+            require_once __DIR__ . '/db.php';
+            $db = db();
             $stmt = $db->prepare("INSERT INTO doacoes (padrinho_id,padrinho_nome,instituicao,tipo,valor,descricao,data_doacao)
                 VALUES (:id,:nome,:instituicao,:tipo,:valor,:descricao,:data)");
             $stmt->execute([
@@ -57,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: doacao.php');
             exit;
         } catch (Throwable $ex) {
-            $errors[] = 'Não foi possível registrar a doação. Verifique se PDO_SQLITE está habilitado e tente novamente.';
+            $errors[] = 'Não foi possível registrar a doação. Verifique a conexão MySQL e a extensão PDO_MYSQL.';
         }
     }
 }

@@ -54,7 +54,7 @@ function e(string $value): string { return htmlspecialchars($value, ENT_QUOTES, 
       <li><a href="#dashboard">Dashboard</a></li><li><a href="#impacto">Impacto</a></li>
       <li><a href="#tecnologias">Tecnologias</a></li><li><a href="#depoimentos">Depoimentos</a></li>
     </ul>
-    <div class="nav-actions"><button class="theme-toggle" id="themeToggle" aria-label="Alternar tema">☾</button><a class="button button-small" href="cadastro.php">Quero apadrinhar</a><a class="button button-small button-outline" href="login.php">Entrar</a></div>
+    <div class="nav-actions"><button class="theme-toggle" id="themeToggle" aria-label="Alternar tema">☾</button><button class="button button-small button-outline" type="button" data-access-open>Entrar</button></div>
   </nav>
 </header>
 <main>
@@ -151,6 +151,21 @@ function e(string $value): string { return htmlspecialchars($value, ENT_QUOTES, 
 <footer class="site-footer"><div class="container footer-grid"><div class="footer-about"><a class="brand" href="#top"><span class="brand-mark">♥</span><span>Padrinho Solidário</span></a><p>Plataforma de gestão social que conecta padrinhos, doadores e abrigos com transparência e afeto.</p></div><div><h4>Links rápidos</h4><a href="#sobre">Sobre</a><a href="#funcionalidades">Funcionalidades</a><a href="#dashboard">Dashboard</a><a href="#impacto">Impacto</a></div><div><h4>Contato</h4><a href="mailto:contato@solidario.app">contato@solidario.app</a><span>Projeto acadêmico demonstrativo</span></div></div><div class="footer-bottom"><div class="container">© <?= date('Y') ?> Padrinho Solidário. Todos os direitos reservados. <span>Feito com ♥ para transformar vidas.</span></div></div></footer>
 
 
+
+<dialog id="accessChoice" class="donation-choice" aria-labelledby="accessChoiceTitle">
+  <div class="donation-choice-inner">
+    <button type="button" class="donation-choice-close" id="accessChoiceClose" aria-label="Fechar">×</button>
+    <span class="eyebrow">Acesso à plataforma</span>
+    <h2 id="accessChoiceTitle">Como deseja entrar?</h2>
+    <p>Selecione o perfil correspondente à sua conta.</p>
+    <div class="donation-choice-actions">
+      <a class="button" href="login.php?perfil=padrinho">Sou apadrinhado</a>
+      <a class="button button-outline" href="login.php?perfil=instituicao">Sou uma instituição</a>
+    </div>
+    <p class="privacy-note" style="margin-top:18px">Ainda não possui conta? Escolha seu perfil e use a opção de cadastro na próxima tela.</p>
+  </div>
+</dialog>
+
 <dialog id="donationChoice" class="donation-choice">
   <div class="donation-choice-inner">
     <button type="button" class="donation-choice-close" id="donationChoiceClose" aria-label="Fechar">×</button>
@@ -174,6 +189,10 @@ function e(string $value): string { return htmlspecialchars($value, ENT_QUOTES, 
 .donation-choice-actions .button{text-align:center}
 </style>
 <script>
+const accessChoice = document.getElementById('accessChoice');
+document.querySelectorAll('[data-access-open]').forEach(button => button.addEventListener('click', () => accessChoice.showModal()));
+document.getElementById('accessChoiceClose').addEventListener('click', () => accessChoice.close());
+accessChoice.addEventListener('click', event => { if(event.target === accessChoice) accessChoice.close(); });
 const donationChoice = document.getElementById('donationChoice');
 document.querySelectorAll('[data-donation-open]').forEach(button => button.addEventListener('click', () => donationChoice.showModal()));
 document.getElementById('donationChoiceClose').addEventListener('click', () => donationChoice.close());
